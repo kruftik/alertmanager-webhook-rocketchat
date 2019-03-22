@@ -1,0 +1,7 @@
+rocketchat:
+  scheme: "<https>"
+  host: "<host.url>"
+credentials:
+  name: "<user>"
+  email: "<user@local.local>"
+  password: "<password>"
