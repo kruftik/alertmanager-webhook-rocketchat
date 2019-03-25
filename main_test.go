@@ -8,7 +8,12 @@ import (
 	"testing"
 )
 
+func init() {
+	*configFile = "config/rocketchat.yml"
+}
+
 func TestWebhookHandler(t *testing.T) {
+
 	// Load a simple example of a body coming from AlertManager
 	data, err := ioutil.ReadFile("test_param.json")
 	if err != nil {
