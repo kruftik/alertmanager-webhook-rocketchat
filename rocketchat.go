@@ -11,14 +11,12 @@ import (
 	"net/url"
 )
 
-
 type Config struct {
 	Rocketchat  url.URL
 	Credentials models.UserCredentials
 }
 
-
-func GetRocketChatClient (configFile string) *realtime.Client {
+func GetRocketChatAuthenticatedClient(configFile string) *realtime.Client {
 
 	config := Config{}
 
@@ -48,7 +46,6 @@ func GetRocketChatClient (configFile string) *realtime.Client {
 	return rtClient
 
 }
-
 
 // Function connects to RocketChat server, authenticate the user and send the notification
 func SendNotification(rtClient *realtime.Client, data template.Data) {

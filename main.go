@@ -7,11 +7,11 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	"log"
 	"net/http"
-	"os"
 )
 
 var (
-	configFile = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
+	configFile    = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
+	listenAddress = kingpin.Flag("listen.address", "The address to listen on for HTTP requests.").Default(":9876").String()
 )
 
 // Webhook http response
@@ -32,7 +32,7 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 	// Do not forget to close the body at the end
 	defer r.Body.Close()
 
-	rocketChatClient := GetRocketChatClient(*configFile)
+	rocketChatClient := GetRocketChatAuthenticatedClient(*configFile)
 
 	// Format notifications and send it
 	SendNotification(rocketChatClient, data)
@@ -51,13 +51,8 @@ func main() {
 	http.HandleFunc("/webhook", webhook)
 	http.Handle("/metrics", promhttp.Handler())
 
-	listenAddress := ":9876"
-	if os.Getenv("PORT") != "" {
-		listenAddress = ":" + os.Getenv("PORT")
-	}
-
-	log.Printf("listening on: %v", listenAddress)
-	log.Fatal(http.ListenAndServe(listenAddress, nil))
+	log.Printf("listening on: %v", *listenAddress)
+	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
 func sendJSONResponse(w http.ResponseWriter, status int, message string) {
@@ -70,4 +65,3 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 	w.WriteHeader(status)
 	w.Write(bytes)
 }
-
