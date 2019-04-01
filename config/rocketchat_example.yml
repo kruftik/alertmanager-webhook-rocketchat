@@ -1,5 +1,5 @@
 rocketchat:
-  scheme: "<https>"
+  scheme: "https"
   host: "<host.url>"
 credentials:
   name: "<user>"

@@ -5,6 +5,8 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"log"
 	"net/http"
 )
@@ -12,6 +14,7 @@ import (
 var (
 	configFile    = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
 	listenAddress = kingpin.Flag("listen.address", "The address to listen on for HTTP requests.").Default(":9876").String()
+	rocketChatClient RocketChatClient
 )
 
 // Webhook http response
@@ -22,17 +25,11 @@ type JSONResponse struct {
 
 func webhook(w http.ResponseWriter, r *http.Request) {
 
-	// Extract data from the body in the Data template provided by AlertManager
-	data := template.Data{}
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+	data, err := readRequestBody(r)
+	if err != nil {
 		sendJSONResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	// Do not forget to close the body at the end
-	defer r.Body.Close()
-
-	rocketChatClient := GetRocketChatAuthenticatedClient(*configFile)
 
 	// Format notifications and send it
 	SendNotification(rocketChatClient, data)
@@ -47,6 +44,10 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+
+	config := loadConfig(*configFile)
+
+	rocketChatClient = GetRocketChatAuthenticatedClient(config)
 
 	http.HandleFunc("/webhook", webhook)
 	http.Handle("/metrics", promhttp.Handler())
@@ -64,4 +65,34 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 
 	w.WriteHeader(status)
 	w.Write(bytes)
+}
+
+func readRequestBody(r *http.Request) (template.Data, error) {
+
+	// Do not forget to close the body at the end
+	defer r.Body.Close()
+
+	// Extract data from the body in the Data template provided by AlertManager
+	data := template.Data{}
+	err := json.NewDecoder(r.Body).Decode(&data)
+
+	return data, err
+}
+
+func loadConfig(configFile string) Config {
+	config := Config{}
+
+	// Load the config from the file
+	configData, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
+	errYAML := yaml.Unmarshal([]byte(configData), &config)
+	if errYAML != nil {
+		log.Fatalf("Error: %v", errYAML)
+	}
+
+	return config
+
 }
