@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net/url"
+	"strings"
+
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/realtime"
 	"github.com/prometheus/alertmanager/template"
-	"log"
-	"net/url"
 )
 
 type Config struct {
@@ -58,4 +60,16 @@ func SendNotification(rtClient RocketChatClient, data template.Data) {
 			return
 		}
 	}
+}
+
+func formatMessage(alert template.Alert) string {
+
+	msgContent := fmt.Sprintf("**%s: %s**\n", strings.Title(alert.Status), alert.Annotations["summary"])
+	msgContent += fmt.Sprintf("**description**: %s\n", alert.Annotations["description"])
+
+	for k, v := range alert.Labels {
+		msgContent += fmt.Sprintf("**%s**: %s\n", k, v)
+	}
+
+	return msgContent
 }
