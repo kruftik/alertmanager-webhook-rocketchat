@@ -39,7 +39,7 @@ func GetRocketChatAuthenticatedClient(config Config) *realtime.Client {
 
 }
 
-// Function connects to RocketChat server, authenticate the user and send the notification
+// SendNotification connects to RocketChat server, authenticate the user and send the notification
 func SendNotification(rtClient RocketChatClient, data template.Data) {
 
 	channelID, errRoom := rtClient.GetChannelId(data.CommonLabels["channel_name"])
@@ -51,9 +51,7 @@ func SendNotification(rtClient RocketChatClient, data template.Data) {
 
 	log.Printf("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
 	for _, alert := range data.Alerts {
-		message := fmt.Sprintf("Alert: status=%s,Labels=%v,Annotations=%v", alert.Status, alert.Labels, alert.Annotations)
-		log.Printf(message)
-
+		message := formatMessage(alert)
 		_, errMessage := rtClient.SendMessage(channel, message)
 		if errMessage != nil {
 			log.Printf("Error to send message: %v", errMessage)
