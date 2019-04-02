@@ -22,6 +22,9 @@ LDFLAGS=-ldflags "\
 
 PWD=$(shell pwd)
 
+.PHONY: all
+all: fmt build test
+
 .PHONY: help
 help:
 	@grep -hE '^[a-zA-Z_-]+.*?:.*?## .*$$' ${MAKEFILE_LIST} | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[0;49;95m%-30s\033[0m %s\n", $$1, $$2}'
