@@ -2,14 +2,15 @@ package main
 
 import (
 	"bytes"
-	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
-	"github.com/prometheus/alertmanager/template"
-	"github.com/stretchr/testify/mock"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
+	"github.com/prometheus/alertmanager/template"
+	"github.com/stretchr/testify/mock"
 )
 
 type MockedClient struct {
@@ -23,7 +24,7 @@ func init() {
 
 	rocketChatMock.On("GetChannelId", "prometheus-test-room").Return("test123")
 	channel := &models.Channel{ID: "test123"}
-	text := "Alert: status=firing,Labels=map[alertname:something_happened env:prod instance:server01.int:9100 job:node service:prometheus_bot severity:warning supervisor:runit],Annotations=map[summary:Oops, something happened!]"
+	text := "**Firing: Oops, something happened!**\n**description**: \n**alertname**: something_happened\n**env**: prod\n**instance**: server01.int:9100\n**job**: node\n**service**: prometheus_bot\n**severity**: warning\n**supervisor**: runit\n"
 	message := &models.Message{ID: "123", RoomID: channel.ID, Msg: text}
 	rocketChatMock.On("SendMessage", channel, text).Return(message)
 

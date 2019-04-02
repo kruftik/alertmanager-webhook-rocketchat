@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
@@ -65,8 +66,14 @@ func formatMessage(alert template.Alert) string {
 	msgContent := fmt.Sprintf("**%s: %s**\n", strings.Title(alert.Status), alert.Annotations["summary"])
 	msgContent += fmt.Sprintf("**description**: %s\n", alert.Annotations["description"])
 
-	for k, v := range alert.Labels {
-		msgContent += fmt.Sprintf("**%s**: %s\n", k, v)
+	var keys []string
+	for k := range alert.Labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		msgContent += fmt.Sprintf("**%s**: %s\n", k, alert.Labels[k])
 	}
 
 	return msgContent
