@@ -1,7 +1,7 @@
 # alertmanager-webhook-rocketchat
-Prometheus AlertManager webhook receiver to Rocket.Chat
+[![Build Status](https://travis-ci.org/FXinnovation/alertmanager-webhook-rocketchat.svg?branch=master)](https://travis-ci.org/FXinnovation/alertmanager-webhook-rocketchat)
 
-https://travis-ci.org/FXinnovation/alertmanager-webhook-rocketchat.svg?branch=master
+Prometheus AlertManager webhook receiver to Rocket.Chat
 
 The project takes 2 optional parameters to be configured :
 - config.file to specify RocketChat configuration. Cf config/rocketchat_example.yml (default : config/rocketchat.yml)
