@@ -36,10 +36,6 @@ clean:
 test: fmt vet ## go test
 	go test -cpu=2 -p=2 -v --short $(LDFLAGS) $(PKGGOFILES)
 
-.PHONY: test-it-test
-test-it-test: fmt vet ## go test with integration
-	go test $(PKGGOFILES) -cpu=2 -p=2 -race  -v $(LDFLAGS)
-
 .PHONY: test-cover
 test-cover: fmt vet ## go test with coverage
 	go test  $(PKGGOFILES) -cover -race -v $(LDFLAGS)
@@ -47,10 +43,6 @@ test-cover: fmt vet ## go test with coverage
 .PHONY: test-coverage
 test-coverage: clean fmt vet ## for jenkins
 	gocov test $(PKGGOFILES) --short -cpu=2 -p=2 -v $(LDFLAGS) | gocov-xml > ./coverage-test.xml
-
-.PHONY: test-it-test-coverage
-test-it-test-coverage: clean fmt vet ## for jenkins
-	gocov test $(PKGGOFILES) -cpu=2 -p=2 -v $(LDFLAGS) | gocov-xml > ./coverage-test-it-test.xml
 
 .PHONY: dependencies
 dependencies: ## download the dependencies
