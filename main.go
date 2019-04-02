@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	configFile    = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
-	listenAddress = kingpin.Flag("listen.address", "The address to listen on for HTTP requests.").Default(":9876").String()
+	configFile       = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
+	listenAddress    = kingpin.Flag("listen.address", "The address to listen on for HTTP requests.").Default(":9876").String()
 	rocketChatClient RocketChatClient
 )
 

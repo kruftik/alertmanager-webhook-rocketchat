@@ -17,19 +17,16 @@ type MockedClient struct {
 }
 
 func init() {
-	//*configFile = "config/rocketchat_example.yml"
-	//config := loadConfig(*configFile)
 
-	rocketChatMock := new (MockedClient)
+	rocketChatMock := new(MockedClient)
 	rocketChatClient = rocketChatMock
 
 	rocketChatMock.On("GetChannelId", "prometheus-test-room").Return("test123")
 	channel := &models.Channel{ID: "test123"}
 	text := "Alert: status=firing,Labels=map[alertname:something_happened env:prod instance:server01.int:9100 job:node service:prometheus_bot severity:warning supervisor:runit],Annotations=map[summary:Oops, something happened!]"
-	message := &models.Message{ID : "123", RoomID: channel.ID, Msg:    text,}
+	message := &models.Message{ID: "123", RoomID: channel.ID, Msg: text}
 	rocketChatMock.On("SendMessage", channel, text).Return(message)
 
-	//rocketChatClient = GetRocketChatAuthenticatedClient(config)
 }
 
 func TestReadRequestBodyOk(t *testing.T) {
@@ -130,12 +127,12 @@ func TestWebhookHandlerError(t *testing.T) {
 	}
 }
 
-func (mock *MockedClient) GetChannelId (channelName string) (string, error) {
+func (mock *MockedClient) GetChannelId(channelName string) (string, error) {
 	args := mock.Called(channelName)
 	return args.String(0), nil
 }
 
-func (mock *MockedClient) SendMessage (channel *models.Channel, text string) (*models.Message, error) {
+func (mock *MockedClient) SendMessage(channel *models.Channel, text string) (*models.Message, error) {
 	args := mock.Called(channel, text)
 	return args.Get(0).(*models.Message), nil
 }
