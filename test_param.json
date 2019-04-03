@@ -24,6 +24,7 @@
     "instance": "test_instance:9100"
   },
   "commonLabels": {
+    "channel_name": "prometheus-test-room",
     "alertname": "something_happened",
     "env": "production",
     "instance": "test_instance:9100",

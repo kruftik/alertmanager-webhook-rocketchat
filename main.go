@@ -2,16 +2,20 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"log"
+	"net/http"
+
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"log"
-	"net/http"
-	"os"
+	"gopkg.in/yaml.v2"
 )
 
 var (
-	configFile = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
+	configFile       = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
+	listenAddress    = kingpin.Flag("listen.address", "The address to listen on for HTTP requests.").Default(":9876").String()
+	rocketChatClient RocketChatClient
 )
 
 // Webhook http response
@@ -22,17 +26,11 @@ type JSONResponse struct {
 
 func webhook(w http.ResponseWriter, r *http.Request) {
 
-	// Extract data from the body in the Data template provided by AlertManager
-	data := template.Data{}
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+	data, err := readRequestBody(r)
+	if err != nil {
 		sendJSONResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	// Do not forget to close the body at the end
-	defer r.Body.Close()
-
-	rocketChatClient := GetRocketChatClient(*configFile)
 
 	// Format notifications and send it
 	SendNotification(rocketChatClient, data)
@@ -48,16 +46,15 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
+	config := loadConfig(*configFile)
+
+	rocketChatClient = GetRocketChatAuthenticatedClient(config)
+
 	http.HandleFunc("/webhook", webhook)
 	http.Handle("/metrics", promhttp.Handler())
 
-	listenAddress := ":9876"
-	if os.Getenv("PORT") != "" {
-		listenAddress = ":" + os.Getenv("PORT")
-	}
-
-	log.Printf("listening on: %v", listenAddress)
-	log.Fatal(http.ListenAndServe(listenAddress, nil))
+	log.Printf("listening on: %v", *listenAddress)
+	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
 func sendJSONResponse(w http.ResponseWriter, status int, message string) {
@@ -71,3 +68,32 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 	w.Write(bytes)
 }
 
+func readRequestBody(r *http.Request) (template.Data, error) {
+
+	// Do not forget to close the body at the end
+	defer r.Body.Close()
+
+	// Extract data from the body in the Data template provided by AlertManager
+	data := template.Data{}
+	err := json.NewDecoder(r.Body).Decode(&data)
+
+	return data, err
+}
+
+func loadConfig(configFile string) Config {
+	config := Config{}
+
+	// Load the config from the file
+	configData, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
+	errYAML := yaml.Unmarshal([]byte(configData), &config)
+	if errYAML != nil {
+		log.Fatalf("Error: %v", errYAML)
+	}
+
+	return config
+
+}

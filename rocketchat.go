@@ -2,40 +2,30 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/realtime"
 	"github.com/prometheus/alertmanager/template"
-	"gopkg.in/yaml.v2"
 )
 
-// Config struct for Rocketchat credentials and url
 type Config struct {
 	Rocketchat  url.URL
 	Credentials models.UserCredentials
 }
 
-// GetRocketChatClient takes path to config file and returns *realtime.Client
-func GetRocketChatClient(configFile string) *realtime.Client {
+type RocketChatClient interface {
+	GetChannelId(name string) (string, error)
+	SendMessage(message *models.Message) (*models.Message, error)
+	NewMessage(channel *models.Channel, text string) *models.Message
+}
 
-	config := Config{}
-
-	// Load the config from the file
-	configData, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-	}
-
-	errYAML := yaml.Unmarshal([]byte(configData), &config)
-	if errYAML != nil {
-		log.Fatalf("Error: %v", errYAML)
-	}
+func GetRocketChatAuthenticatedClient(config Config) *realtime.Client {
 
 	rtClient, errClient := realtime.NewClient(&config.Rocketchat, false)
 	if errClient != nil {
@@ -59,7 +49,7 @@ func newRandomID() string {
 	return fmt.Sprintf("%f", rand.Float64())
 }
 
-func formatMessage(channel *models.Channel, alert template.Alert) *models.Message {
+func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert template.Alert) *models.Message {
 
 	const (
 		warning       = "warning"
@@ -70,38 +60,40 @@ func formatMessage(channel *models.Channel, alert template.Alert) *models.Messag
 	)
 
 	var color string
-	title := fmt.Sprintf("**%s: %s**", strings.Title(alert.Status), alert.Annotations["summary"])
-	attachementText := fmt.Sprintf("**description**: %s\n", alert.Annotations["description"])
+	severity := alert.Labels["severity"]
+	title := fmt.Sprintf("**%s: %s**", strings.Title(severity), alert.Annotations["summary"])
+	message := rtClient.NewMessage(channel, title)
 
-	if strings.ToLower(alert.Status) == warning {
+	if strings.ToLower(severity) == warning {
 		color = warningColor
-	} else if strings.ToLower(alert.Status) == critical {
+	} else if strings.ToLower(severity) == critical {
 		color = criticalColor
 	} else {
 		color = defaultColor
 	}
 
-	for k, v := range alert.Labels {
-		attachementText += fmt.Sprintf("**%s**: %s\n", k, v)
+	var keys []string
+	for k := range alert.Labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	attachementText := fmt.Sprintf("**description**: %s\n", alert.Annotations["description"])
+	for _, k := range keys {
+		attachementText += fmt.Sprintf("**%s**: %s\n", k, alert.Labels[k])
 	}
 
-	return &models.Message{
-		ID:     newRandomID(),
-		RoomID: channel.ID,
-		Msg:    title,
-		PostMessage: models.PostMessage{
-			Attachments: []models.Attachment{
-				models.Attachment{
-					Color: color,
-					Text:  attachementText,
-				},
-			},
+	message.PostMessage.Attachments = []models.Attachment{
+		models.Attachment{
+			Color: color,
+			Text:  attachementText,
 		},
 	}
+	return message
 }
 
-// SendNotification connects to RocketChat server, authenticate the user and send the notification
-func SendNotification(rtClient *realtime.Client, data template.Data) {
+// SendNotification connects to RocketChat server, authenticates the user and sends the notification
+func SendNotification(rtClient RocketChatClient, data template.Data) {
 
 	channelID, errRoom := rtClient.GetChannelId(data.CommonLabels["channel_name"])
 	if errRoom != nil {
@@ -113,8 +105,7 @@ func SendNotification(rtClient *realtime.Client, data template.Data) {
 	log.Printf("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
 	for _, alert := range data.Alerts {
 
-		message := formatMessage(channel, alert)
-
+		message := formatMessage(rtClient, channel, alert)
 		_, errMessage := rtClient.SendMessage(message)
 		if errMessage != nil {
 			log.Printf("Error to send message: %v", errMessage)
