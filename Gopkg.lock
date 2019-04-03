@@ -11,14 +11,33 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:727f43efd9550c968b1419cad71c38a49c1fd67df649f1aafac9a7623e9e08eb"
+  digest = "1:182dbf47e2a0ca1505554959d864f61787c538dadbde7c5a73ade3ee53d3359a"
   name = "github.com/RocketChat/Rocket.Chat.Go.SDK"
   packages = [
     "models",
     "realtime",
   ]
   pruneopts = "UT"
-  revision = "e4558d6dc24fa7a1ed80535528cea793dc73a0cb"
+  revision = "730989826d2ce1a4c84f17e2f923a9697e5d80a1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:315c5f2f60c76d89b871c73f9bd5fe689cad96597afd50fb9992228ef80bdd34"
+  name = "github.com/alecthomas/template"
+  packages = [
+    ".",
+    "parse",
+  ]
+  pruneopts = "UT"
+  revision = "a0175ee3bccc567396460bf5acd36800cb10c49c"
+
+[[projects]]
+  branch = "master"
+  digest = "1:c198fdc381e898e8fb62b8eb62758195091c313ad18e52a3067366e1dda2fb3c"
+  name = "github.com/alecthomas/units"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
 
 [[projects]]
   branch = "master"
@@ -27,6 +46,14 @@
   packages = ["quantile"]
   pruneopts = "UT"
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+
+[[projects]]
+  digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  pruneopts = "UT"
+  revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
+  version = "v1.1.1"
 
 [[projects]]
   digest = "1:318f1c959a8a740366fce4b1e1eb2fd914036b4af58fbd0a003349b305f118ad"
@@ -51,6 +78,14 @@
   pruneopts = "UT"
   revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
   version = "v1.0.1"
+
+[[projects]]
+  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  pruneopts = "UT"
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:801384556ea27595f88ca3a708547c74ad98a682e94df6cf1dd6a9adbe323bcd"
@@ -132,12 +167,36 @@
   revision = "6a9ea43bcacdf716a5c1b38efff722c07adf0069"
 
 [[projects]]
+  digest = "1:972c2427413d41a1e06ca4897e8528e5a1622894050e2f527b38ddf0f343f759"
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  pruneopts = "UT"
+  revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
+  version = "v1.3.0"
+
+[[projects]]
   branch = "master"
   digest = "1:7427036b6d926b3d1fa0773771820735b35554a98296f1074df440ee30a97296"
   name = "golang.org/x/net"
   packages = ["websocket"]
   pruneopts = "UT"
   revision = "1272bf9dcd53ea65c09668fb4c76e65deb740072"
+
+[[projects]]
+  digest = "1:c06d9e11d955af78ac3bbb26bd02e01d2f61f689e1a3bce2ef6fb683ef8a7f2d"
+  name = "gopkg.in/alecthomas/kingpin.v2"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
+  version = "v2.2.6"
+
+[[projects]]
+  digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
+  version = "v2.2.2"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -147,6 +206,9 @@
     "github.com/RocketChat/Rocket.Chat.Go.SDK/realtime",
     "github.com/prometheus/alertmanager/template",
     "github.com/prometheus/client_golang/prometheus/promhttp",
+    "github.com/stretchr/testify/assert",
+    "gopkg.in/alecthomas/kingpin.v2",
+    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
