@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"net/url"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/realtime"
@@ -41,12 +39,6 @@ func GetRocketChatAuthenticatedClient(config Config) *realtime.Client {
 
 	return rtClient
 
-}
-
-// Need to remove this function once our PR to Rocket.Chat SDK is approved
-func newRandomID() string {
-	rand.Seed(time.Now().UnixNano())
-	return fmt.Sprintf("%f", rand.Float64())
 }
 
 func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert template.Alert) *models.Message {
@@ -89,6 +81,7 @@ func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert tem
 			Text:  attachementText,
 		},
 	}
+
 	return message
 }
 

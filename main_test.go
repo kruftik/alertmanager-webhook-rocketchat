@@ -24,9 +24,24 @@ func init() {
 
 	rocketChatMock.On("GetChannelId", "prometheus-test-room").Return("test123")
 	channel := &models.Channel{ID: "test123"}
-	text := "**Firing: Oops, something happened!**\n**description**: \n**alertname**: something_happened\n**env**: prod\n**instance**: server01.int:9100\n**job**: node\n**service**: prometheus_bot\n**severity**: warning\n**supervisor**: runit\n"
-	message := &models.Message{ID: "123", RoomID: channel.ID, Msg: text}
-	rocketChatMock.On("SendMessage", channel, text).Return(message)
+	text := "**Warning: Oops, something happened!**"
+	message := &models.Message{
+		ID:     "123",
+		RoomID: channel.ID,
+		Msg:    text,
+		PostMessage: models.PostMessage{
+			Attachments: []models.Attachment{
+				models.Attachment{
+					Color: "#f2e826",
+					Text: "**description**: \n**alertname**: something_happened\n" +
+						"**env**: prod\n**instance**: server01.int:9100\n" +
+						"**job**: node\n**service**: prometheus_bot\n" +
+						"**severity**: warning\n**supervisor**: runit\n",
+				},
+			},
+		},
+	}
+	rocketChatMock.On("SendMessage", message).Return(message)
 
 }
 
@@ -133,7 +148,15 @@ func (mock *MockedClient) GetChannelId(channelName string) (string, error) {
 	return args.String(0), nil
 }
 
-func (mock *MockedClient) SendMessage(channel *models.Channel, text string) (*models.Message, error) {
-	args := mock.Called(channel, text)
+func (mock *MockedClient) SendMessage(message *models.Message) (*models.Message, error) {
+	args := mock.Called(message)
 	return args.Get(0).(*models.Message), nil
+}
+
+func (mock *MockedClient) NewMessage(channel *models.Channel, text string) *models.Message {
+	return &models.Message{
+		ID:     "123",
+		RoomID: channel.ID,
+		Msg:    text,
+	}
 }
