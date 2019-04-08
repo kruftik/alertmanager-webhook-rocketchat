@@ -40,8 +40,8 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 }
 
 // Starts 2 listeners
-// - first one to give a status on the receiver itself
-// - second one to actually process the data
+// - one to give a status on the receiver itself
+// - one to actually process the data
 func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
@@ -62,10 +62,14 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 		Status:  status,
 		Message: message,
 	}
-	bytes, _ := json.Marshal(data)
 
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("Error to write body: %v", err.Error())
+	} else {
+		w.Write(bytes)
+	}
 	w.WriteHeader(status)
-	w.Write(bytes)
 }
 
 func readRequestBody(r *http.Request) (template.Data, error) {
