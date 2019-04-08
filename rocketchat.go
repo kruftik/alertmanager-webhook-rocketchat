@@ -13,7 +13,7 @@ import (
 )
 
 type Config struct {
-	Rocketchat  url.URL
+	Endpoint  url.URL
 	Credentials models.UserCredentials
 }
 
@@ -24,7 +24,7 @@ type RocketChatClient interface {
 
 func GetRocketChatAuthenticatedClient(config Config) *realtime.Client {
 
-	rtClient, errClient := realtime.NewClient(&config.Rocketchat, false)
+	rtClient, errClient := realtime.NewClient(&config.Endpoint, false)
 	if errClient != nil {
 		log.Printf("Error to get realtime client: %v", errClient)
 		return nil

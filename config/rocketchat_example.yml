@@ -1,4 +1,4 @@
-rocketchat:
+endpoint:
   scheme: "https"
   host: "<host.url>"
 credentials:
