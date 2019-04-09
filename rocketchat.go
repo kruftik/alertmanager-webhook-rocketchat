@@ -18,26 +18,25 @@ type Config struct {
 }
 
 type RocketChatClient interface {
+	Login(credentials *models.UserCredentials) (*models.User, error)
 	GetChannelId(name string) (string, error)
 	SendMessage(channel *models.Channel, text string) (*models.Message, error)
 }
 
-func GetRocketChatAuthenticatedClient(config Config) *realtime.Client {
+func GetRocketChatClient(config Config) (*realtime.Client, error) {
 
 	rtClient, errClient := realtime.NewClient(&config.Endpoint, false)
 	if errClient != nil {
-		log.Printf("Error to get realtime client: %v", errClient)
-		return nil
+		return nil, errClient
 	}
 
+	return rtClient, nil
+
+}
+
+func AuthenticateRocketChatClient(rtClient RocketChatClient, config Config) error {
 	_, errUser := rtClient.Login(&config.Credentials)
-	if errUser != nil {
-		log.Printf("Error to login user: %v", errUser)
-		return nil
-	}
-
-	return rtClient
-
+	return errUser
 }
 
 // SendNotification connects to RocketChat server, authenticate the user and send the notification

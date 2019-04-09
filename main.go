@@ -15,6 +15,7 @@ import (
 var (
 	configFile       = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
 	listenAddress    = kingpin.Flag("listen.address", "The address to listen on for HTTP requests.").Default(":9876").String()
+	config Config
 	rocketChatClient RocketChatClient
 )
 
@@ -32,8 +33,14 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Format notifications and send it
-	SendNotification(rocketChatClient, data)
+	errAuthentication := AuthenticateRocketChatClient(rocketChatClient, config)
+	if errAuthentication != nil {
+		log.Printf("Error authenticaticating RocketChat client: %v", errAuthentication)
+		log.Print("No notification was sent")
+	} else {
+		// Format notifications and send it
+		SendNotification(rocketChatClient, data)
+	}
 
 	// Returns a 200 if everything went smoothly
 	sendJSONResponse(w, http.StatusOK, "Success")
@@ -46,9 +53,18 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	config := loadConfig(*configFile)
+	config = loadConfig(*configFile)
 
-	rocketChatClient = GetRocketChatAuthenticatedClient(config)
+	var errClient error
+	rocketChatClient, errClient = GetRocketChatClient(config)
+	if errClient != nil {
+		log.Fatalf("Error getting RocketChat client: %v", errClient)
+	}
+
+	errAuthentication := AuthenticateRocketChatClient(rocketChatClient, config)
+	if errAuthentication != nil {
+		log.Printf("Error authenticaticating RocketChat client: %v", errAuthentication)
+	}
 
 	http.HandleFunc("/webhook", webhook)
 	http.Handle("/metrics", promhttp.Handler())
@@ -62,6 +78,8 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 		Status:  status,
 		Message: message,
 	}
+	
+	w.WriteHeader(status)
 
 	bytes, err := json.Marshal(data)
 	if err != nil {
@@ -69,7 +87,6 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 	} else {
 		w.Write(bytes)
 	}
-	w.WriteHeader(status)
 }
 
 func readRequestBody(r *http.Request) (template.Data, error) {
