@@ -17,38 +17,10 @@ type MockedClient struct {
 	mock.Mock
 }
 
-func init() {
-
-	rocketChatMock := new(MockedClient)
-	rocketChatClient = rocketChatMock
-
-	rocketChatMock.On("GetChannelId", "prometheus-test-room").Return("test123")
-	channel := &models.Channel{ID: "test123"}
-	text := "**Warning: Oops, something happened!**"
-	message := &models.Message{
-		ID:     "123",
-		RoomID: channel.ID,
-		Msg:    text,
-		PostMessage: models.PostMessage{
-			Attachments: []models.Attachment{
-				models.Attachment{
-					Color: "#f2e826",
-					Text: "**description**: \n**alertname**: something_happened\n" +
-						"**env**: prod\n**instance**: server01.int:9100\n" +
-						"**job**: node\n**service**: prometheus_bot\n" +
-						"**severity**: warning\n**supervisor**: runit\n",
-				},
-			},
-		},
-	}
-	rocketChatMock.On("SendMessage", message).Return(message)
-
-}
-
 func TestReadRequestBodyOk(t *testing.T) {
 
 	// Load a simple example of a body coming from AlertManager
-	data, err := ioutil.ReadFile("test_param.json")
+	data, err := ioutil.ReadFile("test_param_warning.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,13 +62,90 @@ func TestReadRequestBodyError(t *testing.T) {
 	}
 }
 
-func TestWebhookHandler(t *testing.T) {
+func initMockMessage(text, attachmentText, color string) {
+
+	rocketChatMock := new(MockedClient)
+	rocketChatClient = rocketChatMock
+
+	rocketChatMock.On("GetChannelId", "prometheus-test-room").Return("test123")
+	channel := &models.Channel{ID: "test123"}
+	message := &models.Message{
+		ID:     "123",
+		RoomID: channel.ID,
+		Msg:    text,
+		PostMessage: models.PostMessage{
+			Attachments: []models.Attachment{
+				models.Attachment{
+					Color: color,
+					Text:  attachmentText,
+				},
+			},
+		},
+	}
+	rocketChatMock.On("SendMessage", message).Return(message)
+}
+
+func TestWebhookHandlerWarning(t *testing.T) {
+
+	text := "**Warning: Oops, something happened!**"
+	attachmentText := "**description**: \n**alertname**: something_happened\n" +
+		"**env**: prod\n**instance**: server01.int:9100\n" +
+		"**job**: node\n**service**: prometheus_bot\n" +
+		"**severity**: warning\n**supervisor**: runit\n"
+	color := "#f2e826"
+
+	initMockMessage(text, attachmentText, color)
 
 	// Load a simple example of a body coming from AlertManager
-	data, err := ioutil.ReadFile("test_param.json")
+	data, err := ioutil.ReadFile("test_param_warning.json")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	assertWebhookHandler(t, data)
+}
+
+func TestWebhookHandlerCritical(t *testing.T) {
+
+	text := "**Critical: Oops, something happened!**"
+	attachmentText := "**description**: \n**alertname**: something_happened\n" +
+		"**env**: prod\n**instance**: server01.int:9100\n" +
+		"**job**: node\n**service**: prometheus_bot\n" +
+		"**severity**: critical\n**supervisor**: runit\n"
+	color := "#ef0b1e"
+
+	initMockMessage(text, attachmentText, color)
+
+	// Load a simple example of a body coming from AlertManager
+	data, err := ioutil.ReadFile("test_param_critical.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertWebhookHandler(t, data)
+}
+
+func TestWebhookHandlerUndefined(t *testing.T) {
+
+	text := "**Critic: Oops, something happened!**"
+	attachmentText := "**description**: \n**alertname**: something_happened\n" +
+		"**env**: prod\n**instance**: server01.int:9100\n" +
+		"**job**: node\n**service**: prometheus_bot\n" +
+		"**severity**: critic\n**supervisor**: runit\n"
+	color := "#ffffff"
+
+	initMockMessage(text, attachmentText, color)
+
+	// Load a simple example of a body coming from AlertManager
+	data, err := ioutil.ReadFile("test_param_undefined.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertWebhookHandler(t, data)
+}
+
+func assertWebhookHandler(t *testing.T, data []byte) {
 
 	// Create a request to pass to the handler
 	req := httptest.NewRequest("GET", "/webhook", bytes.NewReader(data))
