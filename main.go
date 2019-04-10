@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -33,17 +35,40 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	errAuthentication := AuthenticateRocketChatClient(rocketChatClient, config)
+	log.Printf("%v", data)
+
+	errAuthentication := retry(3, 2*time.Second, func() (err error) {
+		return AuthenticateRocketChatClient(rocketChatClient, config)
+	})
 	if errAuthentication != nil {
-		log.Printf("Error authenticaticating RocketChat client: %v", errAuthentication)
+		log.Printf("Error authenticating RocketChat client: %v", errAuthentication)
 		log.Print("No notification was sent")
+		// Returns a 403 if the user can't authenticate
+		sendJSONResponse(w, http.StatusUnauthorized, errAuthentication.Error())
 	} else {
 		// Format notifications and send it
 		SendNotification(rocketChatClient, data)
+		// Returns a 200 if everything went smoothly
+		sendJSONResponse(w, http.StatusOK, "Success")
 	}
+}
 
-	// Returns a 200 if everything went smoothly
-	sendJSONResponse(w, http.StatusOK, "Success")
+func retry(attempts int, sleep time.Duration, f func() error) (err error) {
+	for i := 0; ; i++ {
+		err = f()
+		if err == nil {
+			return nil
+		}
+
+		if i >= (attempts - 1) {
+			break
+		}
+
+		time.Sleep(sleep)
+
+		log.Println("retrying after error:", err)
+	}
+	return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }
 
 // Starts 2 listeners
@@ -63,7 +88,7 @@ func main() {
 
 	errAuthentication := AuthenticateRocketChatClient(rocketChatClient, config)
 	if errAuthentication != nil {
-		log.Printf("Error authenticaticating RocketChat client: %v", errAuthentication)
+		log.Printf("Error authenticating RocketChat client: %v", errAuthentication)
 	}
 
 	http.HandleFunc("/webhook", webhook)
@@ -78,7 +103,7 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 		Status:  status,
 		Message: message,
 	}
-	
+
 	w.WriteHeader(status)
 
 	bytes, err := json.Marshal(data)
