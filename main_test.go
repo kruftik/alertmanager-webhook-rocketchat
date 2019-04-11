@@ -28,6 +28,11 @@ func init() {
 	message := &models.Message{ID: "123", RoomID: channel.ID, Msg: text}
 	rocketChatMock.On("SendMessage", channel, text).Return(message)
 
+	*configFile = "config/rocketchat.yml"
+	config = loadConfig(*configFile)
+	user := &models.User{ID: "123", Name: "prometheus"}
+	rocketChatMock.On("Login", config).Return(user)
+
 }
 
 func TestReadRequestBodyOk(t *testing.T) {
@@ -136,4 +141,9 @@ func (mock *MockedClient) GetChannelId(channelName string) (string, error) {
 func (mock *MockedClient) SendMessage(channel *models.Channel, text string) (*models.Message, error) {
 	args := mock.Called(channel, text)
 	return args.Get(0).(*models.Message), nil
+}
+
+func (mock *MockedClient) Login(credentials *models.UserCredentials) (*models.User, error) {
+	args := mock.Called(&config.Credentials)
+	return args.Get(0).(*models.User), nil
 }
