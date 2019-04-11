@@ -13,7 +13,7 @@ import (
 )
 
 type Config struct {
-	Endpoint  url.URL
+	Endpoint    url.URL
 	Credentials models.UserCredentials
 }
 
@@ -40,12 +40,12 @@ func AuthenticateRocketChatClient(rtClient RocketChatClient, config Config) erro
 }
 
 // SendNotification connects to RocketChat server, authenticate the user and send the notification
-func SendNotification(rtClient RocketChatClient, data template.Data) {
+func SendNotification(rtClient RocketChatClient, data template.Data) error {
 
 	channelID, errRoom := rtClient.GetChannelId(data.CommonLabels["channel_name"])
 	if errRoom != nil {
 		log.Printf("Error to get room ID: %v", errRoom)
-		return
+		return errRoom
 	}
 	channel := &models.Channel{ID: channelID}
 
@@ -55,9 +55,10 @@ func SendNotification(rtClient RocketChatClient, data template.Data) {
 		_, errMessage := rtClient.SendMessage(channel, message)
 		if errMessage != nil {
 			log.Printf("Error to send message: %v", errMessage)
-			return
+			return errMessage
 		}
 	}
+	return nil
 }
 
 func formatMessage(alert template.Alert) string {

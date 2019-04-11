@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -9,12 +10,13 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 )
 
 var (
 	configFile       = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
 	listenAddress    = kingpin.Flag("listen.address", "The address to listen on for HTTP requests.").Default(":9876").String()
-	config Config
+	config           Config
 	rocketChatClient RocketChatClient
 )
 
@@ -32,18 +34,49 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	errAuthentication := AuthenticateRocketChatClient(rocketChatClient, config)
-	if errAuthentication != nil {
-		log.Printf("Error authenticating RocketChat client: %v", errAuthentication)
-		log.Print("No notification was sent")
+	var errAuthentication error = nil
+
+	errSend := retry(1, 2*time.Second, func() (err error) {
+		errSend := SendNotification(rocketChatClient, data)
+		if errSend != nil {
+			errAuthentication = AuthenticateRocketChatClient(rocketChatClient, config)
+		}
+
+		if errAuthentication != nil {
+			log.Printf("Error authenticating RocketChat client: %v", errAuthentication)
+			log.Print("No notification was sent")
+		}
+
+		return errSend
+
+	})
+
+	if errSend != nil {
+		log.Printf("Error sending notifications to RocketChat : %v", errSend)
 		// Returns a 403 if the user can't authenticate
 		sendJSONResponse(w, http.StatusUnauthorized, errAuthentication.Error())
 	} else {
-		// Format notifications and send it
-		SendNotification(rocketChatClient, data)
 		// Returns a 200 if everything went smoothly
 		sendJSONResponse(w, http.StatusOK, "Success")
 	}
+}
+
+func retry(retries int, sleep time.Duration, f func() error) (err error) {
+	for i := 0; ; i++ {
+		err = f()
+		if err == nil {
+			return nil
+		}
+
+		if i >= retries {
+			break
+		}
+
+		time.Sleep(sleep)
+
+		log.Println("retrying after error:", err)
+	}
+	return fmt.Errorf("after %d retries, last error: %s", retries, err)
 }
 
 // Starts 2 listeners
@@ -83,7 +116,7 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 
 	bytes, err := json.Marshal(data)
 	if err != nil {
-		log.Printf("Error to write body: %v", err.Error())
+		log.Printf("Error writing body: %v", err.Error())
 	} else {
 		w.Write(bytes)
 	}
