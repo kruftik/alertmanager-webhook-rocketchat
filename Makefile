@@ -22,53 +22,43 @@ LDFLAGS=-ldflags "\
 
 PWD=$(shell pwd)
 
-.PHONY: all
+.PHONY: all help clean test test-cover test-coverage dependencies build fmt vet lint tools
+
 all: fmt build test
 
-.PHONY: help
 help:
 	@grep -hE '^[a-zA-Z_-]+.*?:.*?## .*$$' ${MAKEFILE_LIST} | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[0;49;95m%-30s\033[0m %s\n", $$1, $$2}'
 
 ## If you have go on your wonderful laptop
-.PHONY: clean
 clean:
 	@rm -rf ./target || true
 	@mkdir ./target || true
 
-.PHONY: test
 test: fmt vet ## go test
 	go test -cpu=2 -p=2 -v --short $(LDFLAGS) $(PKGGOFILES)
 
-.PHONY: test-cover
 test-cover: fmt vet ## go test with coverage
 	go test  $(PKGGOFILES) -cover -race -v $(LDFLAGS)
 
-.PHONY: test-coverage
 test-coverage: clean fmt vet ## for jenkins
 	gocov test $(PKGGOFILES) --short -cpu=2 -p=2 -v $(LDFLAGS) | gocov-xml > ./coverage-test.xml
 
-.PHONY: dependencies
 dependencies: ## download the dependencies
 	rm -rf Gopkg.lock vendor/
 	dep ensure
 
-.PHONY: build
 build: clean fmt vet
 	go build $(LDFLAGS)
 
-.PHONY: fmt
 fmt: ## go fmt on packages
 	go fmt $(PKGGOFILES)
 
-.PHONY: vet
 vet: ## go vet on packages
 	go vet $(PKGGOFILES)
 
-.PHONY: lint
 lint: ## go vet on packages
 	golint -set_exit_status=true $(PKGGOFILES)
 
-.PHONY: tools
 tools: ## install tools to develop
 	go get -u github.com/golang/dep/cmd/dep
 	go get -u golang.org/x/lint/golint
