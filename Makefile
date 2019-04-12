@@ -23,7 +23,7 @@ LDFLAGS=-ldflags "\
 PWD=$(shell pwd)
 
 .PHONY: all
-all: fmt build test-coverage
+all: fmt build test
 
 .PHONY: help
 help:
