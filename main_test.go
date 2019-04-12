@@ -28,7 +28,7 @@ func init() {
 	message := &models.Message{ID: "123", RoomID: channel.ID, Msg: text}
 	rocketChatMock.On("SendMessage", channel, text).Return(message)
 
-	*configFile = "config/rocketchat.yml"
+	*configFile = "config/rocketchat_example.yml"
 	config = loadConfig(*configFile)
 	user := &models.User{ID: "123", Name: "prometheus"}
 	rocketChatMock.On("Login", config).Return(user)
