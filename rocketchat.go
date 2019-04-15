@@ -13,32 +13,31 @@ import (
 )
 
 type Config struct {
-	Rocketchat  url.URL
+	Endpoint    url.URL
 	Credentials models.UserCredentials
 }
 
 type RocketChatClient interface {
+	Login(credentials *models.UserCredentials) (*models.User, error)
 	GetChannelId(name string) (string, error)
 	SendMessage(message *models.Message) (*models.Message, error)
 	NewMessage(channel *models.Channel, text string) *models.Message
 }
 
-func GetRocketChatAuthenticatedClient(config Config) *realtime.Client {
+func GetRocketChatClient(config Config) (*realtime.Client, error) {
 
-	rtClient, errClient := realtime.NewClient(&config.Rocketchat, false)
+	rtClient, errClient := realtime.NewClient(&config.Endpoint, false)
 	if errClient != nil {
-		log.Printf("Error to get realtime client: %v", errClient)
-		return nil
+		return nil, errClient
 	}
 
+	return rtClient, nil
+
+}
+
+func AuthenticateRocketChatClient(rtClient RocketChatClient, config Config) error {
 	_, errUser := rtClient.Login(&config.Credentials)
-	if errUser != nil {
-		log.Printf("Error to login user: %v", errUser)
-		return nil
-	}
-
-	return rtClient
-
+	return errUser
 }
 
 func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert template.Alert) *models.Message {
@@ -86,12 +85,12 @@ func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert tem
 }
 
 // SendNotification connects to RocketChat server, authenticates the user and sends the notification
-func SendNotification(rtClient RocketChatClient, data template.Data) {
+func SendNotification(rtClient RocketChatClient, data template.Data) error {
 
 	channelID, errRoom := rtClient.GetChannelId(data.CommonLabels["channel_name"])
 	if errRoom != nil {
 		log.Printf("Error to get room ID: %v", errRoom)
-		return
+		return errRoom
 	}
 	channel := &models.Channel{ID: channelID}
 
@@ -102,7 +101,8 @@ func SendNotification(rtClient RocketChatClient, data template.Data) {
 		_, errMessage := rtClient.SendMessage(message)
 		if errMessage != nil {
 			log.Printf("Error to send message: %v", errMessage)
-			return
+			return errMessage
 		}
 	}
+	return nil
 }

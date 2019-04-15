@@ -83,6 +83,11 @@ func initMockMessage(text, attachmentText, color string) {
 		},
 	}
 	rocketChatMock.On("SendMessage", message).Return(message)
+
+	*configFile = "config/rocketchat_example.yml"
+	config = loadConfig(*configFile)
+	user := &models.User{ID: "123", Name: "prometheus"}
+	rocketChatMock.On("Login", config).Return(user)
 }
 
 func TestWebhookHandlerWarning(t *testing.T) {
@@ -208,4 +213,9 @@ func (mock *MockedClient) NewMessage(channel *models.Channel, text string) *mode
 		RoomID: channel.ID,
 		Msg:    text,
 	}
+}
+
+func (mock *MockedClient) Login(credentials *models.UserCredentials) (*models.User, error) {
+	args := mock.Called(&config.Credentials)
+	return args.Get(0).(*models.User), nil
 }

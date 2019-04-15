@@ -2,19 +2,21 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"log"
-	"net/http"
-
+	"fmt"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"time"
 )
 
 var (
 	configFile       = kingpin.Flag("config.file", "RocketChat configuration file.").Default("config/rocketchat.yml").String()
 	listenAddress    = kingpin.Flag("listen.address", "The address to listen on for HTTP requests.").Default(":9876").String()
+	config           Config
 	rocketChatClient RocketChatClient
 )
 
@@ -32,23 +34,70 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Format notifications and send it
-	SendNotification(rocketChatClient, data)
+	var errAuthentication error = nil
 
-	// Returns a 200 if everything went smoothly
-	sendJSONResponse(w, http.StatusOK, "Success")
+	errSend := retry(1, 2*time.Second, func() (err error) {
+		errSend := SendNotification(rocketChatClient, data)
+		if errSend != nil {
+			errAuthentication = AuthenticateRocketChatClient(rocketChatClient, config)
+		}
+
+		if errAuthentication != nil {
+			log.Printf("Error authenticating RocketChat client: %v", errAuthentication)
+			log.Print("No notification was sent")
+		}
+
+		return errSend
+
+	})
+
+	if errSend != nil {
+		log.Printf("Error sending notifications to RocketChat : %v", errSend)
+		// Returns a 403 if the user can't authenticate
+		sendJSONResponse(w, http.StatusUnauthorized, errAuthentication.Error())
+	} else {
+		// Returns a 200 if everything went smoothly
+		sendJSONResponse(w, http.StatusOK, "Success")
+	}
+}
+
+func retry(retries int, sleep time.Duration, f func() error) (err error) {
+	for i := 0; ; i++ {
+		err = f()
+		if err == nil {
+			return nil
+		}
+
+		if i >= retries {
+			break
+		}
+
+		time.Sleep(sleep)
+
+		log.Println("retrying after error:", err)
+	}
+	return fmt.Errorf("after %d retries, last error: %s", retries, err)
 }
 
 // Starts 2 listeners
-// - first one to give a status on the receiver itself
-// - second one to actually process the data
+// - one to give a status on the receiver itself
+// - one to actually process the data
 func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	config := loadConfig(*configFile)
+	config = loadConfig(*configFile)
 
-	rocketChatClient = GetRocketChatAuthenticatedClient(config)
+	var errClient error
+	rocketChatClient, errClient = GetRocketChatClient(config)
+	if errClient != nil {
+		log.Fatalf("Error getting RocketChat client: %v", errClient)
+	}
+
+	errAuthentication := AuthenticateRocketChatClient(rocketChatClient, config)
+	if errAuthentication != nil {
+		log.Printf("Error authenticating RocketChat client: %v", errAuthentication)
+	}
 
 	http.HandleFunc("/webhook", webhook)
 	http.Handle("/metrics", promhttp.Handler())
@@ -62,10 +111,15 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 		Status:  status,
 		Message: message,
 	}
-	bytes, _ := json.Marshal(data)
 
 	w.WriteHeader(status)
-	w.Write(bytes)
+
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("Error writing body: %v", err.Error())
+	} else {
+		w.Write(bytes)
+	}
 }
 
 func readRequestBody(r *http.Request) (template.Data, error) {
