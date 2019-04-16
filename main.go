@@ -38,7 +38,7 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 	var errAuthentication error = nil
 
 	errSend := retry(1, 2*time.Second, func() (err error) {
-		errSend := SendNotification(rocketChatClient, data)
+		errSend := SendNotification(rocketChatClient, data, config)
 		if errSend != nil {
 			errAuthentication = AuthenticateRocketChatClient(rocketChatClient, config)
 		}
@@ -88,6 +88,7 @@ func main() {
 	kingpin.Parse()
 
 	config = loadConfig(*configFile)
+	fmt.Println(config)
 
 	var errClient error
 	rocketChatClient, errClient = GetRocketChatClient(config)

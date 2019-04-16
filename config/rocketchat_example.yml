@@ -1,7 +1,6 @@
 endpoint:
   scheme: "https"
   host: "<host.url>"
-  default_channel_name: "<default_channel_name>"
 credentials:
   name: "<user>"
   email: "<user@local.local>"
@@ -9,3 +8,5 @@ credentials:
 severity_colors:
   warning: "<warning_color>"
   critical: "<critical_color>"
+channel:
+  default_channel_name: "<default_channel_name>"

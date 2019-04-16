@@ -12,9 +12,15 @@ import (
 	"github.com/prometheus/alertmanager/template"
 )
 
+type ChannelInfo struct {
+	DefaultChannelName string
+}
+
 type Config struct {
-	Endpoint    url.URL
-	Credentials models.UserCredentials
+	Endpoint       url.URL
+	Credentials    models.UserCredentials
+	SeverityColors map[string]string
+	Channel        ChannelInfo
 }
 
 type RocketChatClient interface {
@@ -40,27 +46,21 @@ func AuthenticateRocketChatClient(rtClient RocketChatClient, config Config) erro
 	return errUser
 }
 
-func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert template.Alert) *models.Message {
+func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert template.Alert, config Config) *models.Message {
 
 	const (
-		warning       = "warning"
-		critical      = "critical"
-		warningColor  = "#f2e826"
-		criticalColor = "#ef0b1e"
-		defaultColor  = "#ffffff"
+		defaultColor = "#ffffff"
 	)
 
-	var color string
 	severity := alert.Labels["severity"]
 	title := fmt.Sprintf("**%s: %s**", severity, alert.Annotations["summary"])
 	message := rtClient.NewMessage(channel, title)
 
-	if strings.ToLower(severity) == warning {
-		color = warningColor
-	} else if strings.ToLower(severity) == critical {
-		color = criticalColor
-	} else {
-		color = defaultColor
+	color := defaultColor
+	for k, v := range config.SeverityColors {
+		if k == strings.ToLower(severity) {
+			color = v
+		}
 	}
 
 	var keys []string
@@ -85,9 +85,16 @@ func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert tem
 }
 
 // SendNotification connects to RocketChat server, authenticates the user and sends the notification
-func SendNotification(rtClient RocketChatClient, data template.Data) error {
+func SendNotification(rtClient RocketChatClient, data template.Data, config Config) error {
 
-	channelID, errRoom := rtClient.GetChannelId(data.CommonLabels["channel_name"])
+	var channelName string
+	if val, ok := data.CommonLabels["channel_name"]; ok {
+		channelName = val
+	} else {
+		channelName = config.Channel.DefaultChannelName
+	}
+
+	channelID, errRoom := rtClient.GetChannelId(channelName)
 	if errRoom != nil {
 		log.Printf("Error to get room ID: %v", errRoom)
 		return errRoom
@@ -97,7 +104,7 @@ func SendNotification(rtClient RocketChatClient, data template.Data) error {
 	log.Printf("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
 	for _, alert := range data.Alerts {
 
-		message := formatMessage(rtClient, channel, alert)
+		message := formatMessage(rtClient, channel, alert, config)
 		_, errMessage := rtClient.SendMessage(message)
 		if errMessage != nil {
 			log.Printf("Error to send message: %v", errMessage)
