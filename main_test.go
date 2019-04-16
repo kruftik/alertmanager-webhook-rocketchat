@@ -92,7 +92,7 @@ func initMockMessage(text, attachmentText, color string) {
 
 func TestWebhookHandlerWarning(t *testing.T) {
 
-	text := "**Warning: Oops, something happened!**"
+	text := "**warning: Oops, something happened!**"
 	attachmentText := "**description**: \n**alertname**: something_happened\n" +
 		"**env**: prod\n**instance**: server01.int:9100\n" +
 		"**job**: node\n**service**: prometheus_bot\n" +
@@ -112,7 +112,7 @@ func TestWebhookHandlerWarning(t *testing.T) {
 
 func TestWebhookHandlerCritical(t *testing.T) {
 
-	text := "**Critical: Oops, something happened!**"
+	text := "**critical: Oops, something happened!**"
 	attachmentText := "**description**: \n**alertname**: something_happened\n" +
 		"**env**: prod\n**instance**: server01.int:9100\n" +
 		"**job**: node\n**service**: prometheus_bot\n" +
@@ -132,7 +132,7 @@ func TestWebhookHandlerCritical(t *testing.T) {
 
 func TestWebhookHandlerUndefined(t *testing.T) {
 
-	text := "**Critic: Oops, something happened!**"
+	text := "**critic: Oops, something happened!**"
 	attachmentText := "**description**: \n**alertname**: something_happened\n" +
 		"**env**: prod\n**instance**: server01.int:9100\n" +
 		"**job**: node\n**service**: prometheus_bot\n" +

@@ -52,7 +52,7 @@ func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert tem
 
 	var color string
 	severity := alert.Labels["severity"]
-	title := fmt.Sprintf("**%s: %s**", strings.Title(severity), alert.Annotations["summary"])
+	title := fmt.Sprintf("**%s: %s**", severity, alert.Annotations["summary"])
 	message := rtClient.NewMessage(channel, title)
 
 	if strings.ToLower(severity) == warning {

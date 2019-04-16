@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/prometheus/alertmanager/template"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/prometheus/alertmanager/template"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/yaml.v2"
 )
 
 var (
