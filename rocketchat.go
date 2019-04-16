@@ -13,14 +13,14 @@ import (
 )
 
 type ChannelInfo struct {
-	DefaultChannelName string
+	DefaultChannelName string `yaml:"default_channel_name"`
 }
 
 type Config struct {
-	Endpoint       url.URL
-	Credentials    models.UserCredentials
-	SeverityColors map[string]string
-	Channel        ChannelInfo
+	Endpoint       url.URL                `yaml:"endpoint"`
+	Credentials    models.UserCredentials `yaml:"credentials"`
+	SeverityColors map[string]string      `yaml:"severity_colors"`
+	Channel        ChannelInfo            `yaml:"channel"`
 }
 
 type RocketChatClient interface {

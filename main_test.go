@@ -62,12 +62,12 @@ func TestReadRequestBodyError(t *testing.T) {
 	}
 }
 
-func initMockMessage(text, attachmentText, color string) {
+func initMockMessage(text, attachmentText, color, channelName string) {
 
 	rocketChatMock := new(MockedClient)
 	rocketChatClient = rocketChatMock
 
-	rocketChatMock.On("GetChannelId", "prometheus-test-room").Return("test123")
+	rocketChatMock.On("GetChannelId", channelName).Return("test123")
 	channel := &models.Channel{ID: "test123"}
 	message := &models.Message{
 		ID:     "123",
@@ -97,9 +97,10 @@ func TestWebhookHandlerWarning(t *testing.T) {
 		"**env**: prod\n**instance**: server01.int:9100\n" +
 		"**job**: node\n**service**: prometheus_bot\n" +
 		"**severity**: warning\n**supervisor**: runit\n"
-	color := "#f2e826"
+	color := "<warning_color_hexcode>"
+	channelName := "prometheus-test-room"
 
-	initMockMessage(text, attachmentText, color)
+	initMockMessage(text, attachmentText, color, channelName)
 
 	// Load a simple example of a body coming from AlertManager
 	data, err := ioutil.ReadFile("test_param_warning.json")
@@ -117,9 +118,10 @@ func TestWebhookHandlerCritical(t *testing.T) {
 		"**env**: prod\n**instance**: server01.int:9100\n" +
 		"**job**: node\n**service**: prometheus_bot\n" +
 		"**severity**: critical\n**supervisor**: runit\n"
-	color := "#ef0b1e"
+	color := "<critical_color_hexcode>"
+	channelName := "prometheus-test-room"
 
-	initMockMessage(text, attachmentText, color)
+	initMockMessage(text, attachmentText, color, channelName)
 
 	// Load a simple example of a body coming from AlertManager
 	data, err := ioutil.ReadFile("test_param_critical.json")
@@ -138,8 +140,9 @@ func TestWebhookHandlerUndefined(t *testing.T) {
 		"**job**: node\n**service**: prometheus_bot\n" +
 		"**severity**: critic\n**supervisor**: runit\n"
 	color := "#ffffff"
+	channelName := "<default_channel_name>"
 
-	initMockMessage(text, attachmentText, color)
+	initMockMessage(text, attachmentText, color, channelName)
 
 	// Load a simple example of a body coming from AlertManager
 	data, err := ioutil.ReadFile("test_param_undefined.json")

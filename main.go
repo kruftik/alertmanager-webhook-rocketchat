@@ -88,7 +88,6 @@ func main() {
 	kingpin.Parse()
 
 	config = loadConfig(*configFile)
-	fmt.Println(config)
 
 	var errClient error
 	rocketChatClient, errClient = GetRocketChatClient(config)
