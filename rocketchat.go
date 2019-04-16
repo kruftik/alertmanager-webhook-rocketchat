@@ -60,6 +60,7 @@ func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert tem
 	for k, v := range config.SeverityColors {
 		if k == strings.ToLower(severity) {
 			color = v
+			break
 		}
 	}
 
