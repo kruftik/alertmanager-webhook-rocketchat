@@ -12,15 +12,22 @@ import (
 	"github.com/prometheus/alertmanager/template"
 )
 
+type ChannelInfo struct {
+	DefaultChannelName string `yaml:"default_channel_name"`
+}
+
 type Config struct {
-	Endpoint    url.URL
-	Credentials models.UserCredentials
+	Endpoint       url.URL                `yaml:"endpoint"`
+	Credentials    models.UserCredentials `yaml:"credentials"`
+	SeverityColors map[string]string      `yaml:"severity_colors"`
+	Channel        ChannelInfo            `yaml:"channel"`
 }
 
 type RocketChatClient interface {
 	Login(credentials *models.UserCredentials) (*models.User, error)
 	GetChannelId(name string) (string, error)
-	SendMessage(channel *models.Channel, text string) (*models.Message, error)
+	SendMessage(message *models.Message) (*models.Message, error)
+	NewMessage(channel *models.Channel, text string) *models.Message
 }
 
 func GetRocketChatClient(config Config) (*realtime.Client, error) {
@@ -39,32 +46,23 @@ func AuthenticateRocketChatClient(rtClient RocketChatClient, config Config) erro
 	return errUser
 }
 
-// SendNotification connects to RocketChat server, authenticate the user and send the notification
-func SendNotification(rtClient RocketChatClient, data template.Data) error {
+func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert template.Alert, config Config) *models.Message {
 
-	channelID, errRoom := rtClient.GetChannelId(data.CommonLabels["channel_name"])
-	if errRoom != nil {
-		log.Printf("Error to get room ID: %v", errRoom)
-		return errRoom
-	}
-	channel := &models.Channel{ID: channelID}
+	const (
+		defaultColor = "#ffffff"
+	)
 
-	log.Printf("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
-	for _, alert := range data.Alerts {
-		message := formatMessage(alert)
-		_, errMessage := rtClient.SendMessage(channel, message)
-		if errMessage != nil {
-			log.Printf("Error to send message: %v", errMessage)
-			return errMessage
+	severity := alert.Labels["severity"]
+	title := fmt.Sprintf("**[%s] %s: %s**", alert.Status, severity, alert.Annotations["summary"])
+	message := rtClient.NewMessage(channel, title)
+
+	color := defaultColor
+	for k, v := range config.SeverityColors {
+		if k == strings.ToLower(severity) {
+			color = v
+			break
 		}
 	}
-	return nil
-}
-
-func formatMessage(alert template.Alert) string {
-
-	msgContent := fmt.Sprintf("**%s: %s**\n", strings.Title(alert.Status), alert.Annotations["summary"])
-	msgContent += fmt.Sprintf("**description**: %s\n", alert.Annotations["description"])
 
 	var keys []string
 	for k := range alert.Labels {
@@ -72,9 +70,51 @@ func formatMessage(alert template.Alert) string {
 	}
 	sort.Strings(keys)
 
+	attachementText := fmt.Sprintf("**description**: %s\n**alert_timestamp**: %s\n", alert.Annotations["description"], alert.StartsAt)
 	for _, k := range keys {
-		msgContent += fmt.Sprintf("**%s**: %s\n", k, alert.Labels[k])
+		attachementText += fmt.Sprintf("**%s**: %s\n", k, alert.Labels[k])
 	}
 
-	return msgContent
+	message.PostMessage.Attachments = []models.Attachment{
+		models.Attachment{
+			Color: color,
+			Text:  attachementText,
+		},
+	}
+
+	return message
+}
+
+// SendNotification connects to RocketChat server, authenticates the user and sends the notification
+func SendNotification(rtClient RocketChatClient, data template.Data, config Config) error {
+
+	var channelName string
+	if val, ok := data.CommonLabels["channel_name"]; ok {
+		channelName = val
+	} else {
+		channelName = config.Channel.DefaultChannelName
+	}
+
+	if channelName == "" {
+		log.Print("Exception: Channel name not found. Please specify a default_channel_name in the configuration.")
+	} else {
+		channelID, errRoom := rtClient.GetChannelId(channelName)
+		if errRoom != nil {
+			log.Printf("Error to get room ID: %v", errRoom)
+			return errRoom
+		}
+		channel := &models.Channel{ID: channelID}
+
+		log.Printf("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
+		for _, alert := range data.Alerts {
+
+			message := formatMessage(rtClient, channel, alert, config)
+			_, errMessage := rtClient.SendMessage(message)
+			if errMessage != nil {
+				log.Printf("Error to send message: %v", errMessage)
+				return errMessage
+			}
+		}
+	}
+	return nil
 }

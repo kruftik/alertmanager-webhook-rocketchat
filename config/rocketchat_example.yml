@@ -5,3 +5,8 @@ credentials:
   name: "<user>"
   email: "<user@local.local>"
   password: "<password>"
+severity_colors:
+  warning: "<warning_color_hexcode>"
+  critical: "<critical_color_hexcode>"
+channel:
+  default_channel_name: "<default_channel_name>"

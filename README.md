@@ -39,7 +39,7 @@ The project takes 2 optional parameters to be configured :
 Configuration is done at three levels: alertmanager-webhook-rocketchat, AlertManager, and Prometheus server.
 
 ### alertmanager-webhook-rocketchat config
-alertmanager-webhook-rocketchat Rocket.Chat endpoint and credentials are configured in a yml file, i.e.:
+alertmanager-webhook-rocketchat Rocket.Chat endpoint, credentials, severity_colors, and channel are configured in a yml file, as shown in the example below. Note that fields ``severity_colors`` and ``channel`` are **optional**. More severity color mappings can be added.
 
 ```
 endpoint:
@@ -49,6 +49,11 @@ credentials:
   name: "<user>"
   email: "<user@local.local>"
   password: "<password>"
+severity_colors:
+  warning: "<warning_color_hexcode>"
+  critical: "<critical_color_hexcode>"
+channel:
+  default_channel_name: "<default_channel_name>"
 ```
 
 ### AlertManager config
