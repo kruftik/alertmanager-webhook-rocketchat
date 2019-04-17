@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 
@@ -93,6 +94,11 @@ func SendNotification(rtClient RocketChatClient, data template.Data, config Conf
 		channelName = val
 	} else {
 		channelName = config.Channel.DefaultChannelName
+	}
+
+	if channelName == "" {
+		log.Print("Exception: Channel name not found. Please specify a channel name.")
+		os.Exit(3)
 	}
 
 	channelID, errRoom := rtClient.GetChannelId(channelName)
