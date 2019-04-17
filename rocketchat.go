@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"os"
 	"sort"
 	"strings"
 
@@ -71,7 +70,7 @@ func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert tem
 	}
 	sort.Strings(keys)
 
-	attachementText := fmt.Sprintf("**description**: %s\n**alert_timestamp: %s\n", alert.Annotations["description"], alert.StartsAt)
+	attachementText := fmt.Sprintf("**description**: %s\n**alert_timestamp**: %s\n", alert.Annotations["description"], alert.StartsAt)
 	for _, k := range keys {
 		attachementText += fmt.Sprintf("**%s**: %s\n", k, alert.Labels[k])
 	}
@@ -97,25 +96,24 @@ func SendNotification(rtClient RocketChatClient, data template.Data, config Conf
 	}
 
 	if channelName == "" {
-		log.Print("Exception: Channel name not found. Please specify a channel name.")
-		os.Exit(3)
-	}
+		log.Print("Exception: Channel name not found. Please specify a default_channel_name in the configuration.")
+	} else {
+		channelID, errRoom := rtClient.GetChannelId(channelName)
+		if errRoom != nil {
+			log.Printf("Error to get room ID: %v", errRoom)
+			return errRoom
+		}
+		channel := &models.Channel{ID: channelID}
 
-	channelID, errRoom := rtClient.GetChannelId(channelName)
-	if errRoom != nil {
-		log.Printf("Error to get room ID: %v", errRoom)
-		return errRoom
-	}
-	channel := &models.Channel{ID: channelID}
+		log.Printf("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
+		for _, alert := range data.Alerts {
 
-	log.Printf("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
-	for _, alert := range data.Alerts {
-
-		message := formatMessage(rtClient, channel, alert, config)
-		_, errMessage := rtClient.SendMessage(message)
-		if errMessage != nil {
-			log.Printf("Error to send message: %v", errMessage)
-			return errMessage
+			message := formatMessage(rtClient, channel, alert, config)
+			_, errMessage := rtClient.SendMessage(message)
+			if errMessage != nil {
+				log.Printf("Error to send message: %v", errMessage)
+				return errMessage
+			}
 		}
 	}
 	return nil
