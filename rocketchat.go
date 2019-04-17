@@ -71,7 +71,7 @@ func formatMessage(rtClient RocketChatClient, channel *models.Channel, alert tem
 	}
 	sort.Strings(keys)
 
-	attachementText := fmt.Sprintf("**description**: %s\n", alert.Annotations["description"])
+	attachementText := fmt.Sprintf("**description**: %s\n**alert_timestamp: %s\n", alert.Annotations["description"], alert.StartsAt)
 	for _, k := range keys {
 		attachementText += fmt.Sprintf("**%s**: %s\n", k, alert.Labels[k])
 	}
