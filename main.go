@@ -111,6 +111,7 @@ func main() {
 
 	errCheckConfig := checkConfig(config)
 	if errCheckConfig != nil {
+		log.Printf("Error while loading configuration: %v", errCheckConfig)
 		log.Fatal("Missing Rocket.Chat config parameters.")
 	} else {
 		var errClient error
