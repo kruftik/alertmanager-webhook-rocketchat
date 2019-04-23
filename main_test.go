@@ -2,16 +2,130 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"testing"
 
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
 	"github.com/prometheus/alertmanager/template"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+type ConfigDataTest struct {
+	input    Config
+	expected error
+}
+
+var valuesCheckConfig = []ConfigDataTest{
+	{
+		input: Config{
+			url.URL{
+				Host:   "rocket.chat",
+				Scheme: "https",
+			},
+			models.UserCredentials{
+				ID:       "123",
+				Email:    "123@123",
+				Password: "1234",
+			},
+			map[string]string{},
+			ChannelInfo{
+				DefaultChannelName: "default",
+			},
+		},
+		expected: nil,
+	},
+	{
+		input: Config{
+			url.URL{
+				Scheme: "https",
+			},
+			models.UserCredentials{
+				ID:       "123",
+				Email:    "123@123",
+				Password: "1234",
+			},
+			map[string]string{},
+			ChannelInfo{
+				DefaultChannelName: "default",
+			},
+		},
+		expected: errors.New("rocket.chat host not provided"),
+	},
+	{
+		input: Config{
+			url.URL{
+				Host: "rocket.chat",
+			},
+			models.UserCredentials{
+				ID:       "123",
+				Email:    "123@123",
+				Password: "1234",
+			},
+			map[string]string{},
+			ChannelInfo{
+				DefaultChannelName: "default",
+			},
+		},
+		expected: errors.New("rocket.chat scheme not provided"),
+	},
+	{
+		input: Config{
+			url.URL{
+				Host:   "rocket.chat",
+				Scheme: "https",
+			},
+			models.UserCredentials{
+				Email:    "123@123",
+				Password: "1234",
+			},
+			map[string]string{},
+			ChannelInfo{
+				DefaultChannelName: "default",
+			},
+		},
+		expected: errors.New("rocket.chat ID not provided"),
+	},
+	{
+		input: Config{
+			url.URL{
+				Host:   "rocket.chat",
+				Scheme: "https",
+			},
+			models.UserCredentials{
+				ID:       "123",
+				Password: "1234",
+			},
+			map[string]string{},
+			ChannelInfo{
+				DefaultChannelName: "default",
+			},
+		},
+		expected: errors.New("rocket.chat email not provided"),
+	},
+	{
+		input: Config{
+			url.URL{
+				Host:   "rocket.chat",
+				Scheme: "https",
+			},
+			models.UserCredentials{
+				ID:    "123",
+				Email: "123@123",
+			},
+			map[string]string{},
+			ChannelInfo{
+				DefaultChannelName: "default",
+			},
+		},
+		expected: errors.New("rocket.chat password not provided"),
+	},
+}
 
 type MockedClient struct {
 	mock.Mock
@@ -200,6 +314,14 @@ func TestWebhookHandlerError(t *testing.T) {
 	expected := `{"Status":400,"Message":"EOF"}`
 	if rr.Body.String() != expected {
 		t.Errorf("Unexpected body: got %v, want %v", rr.Body.String(), expected)
+	}
+}
+
+func TestCheckConfig(t *testing.T) {
+
+	for _, d := range valuesCheckConfig {
+		configStatus := checkConfig(d.input)
+		assert.Equal(t, d.expected, configStatus)
 	}
 }
 
