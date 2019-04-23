@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -25,6 +26,25 @@ var (
 type JSONResponse struct {
 	Status  int
 	Message string
+}
+
+func checkConfig(config Config) error {
+	if config.Credentials.ID == "" {
+		return errors.New("rocket.chat ID not provided")
+	}
+	if config.Credentials.Email == "" {
+		return errors.New("rocket.chat email not provided")
+	}
+	if config.Credentials.Password == "" {
+		return errors.New("rocket.chat password not provided")
+	}
+	if config.Endpoint.Host == "" {
+		return errors.New("rocket.chat host not provided")
+	}
+	if config.Endpoint.Scheme == "" {
+		return errors.New("rocket.chat scheme not provided")
+	}
+	return nil
 }
 
 func webhook(w http.ResponseWriter, r *http.Request) {
@@ -89,22 +109,27 @@ func main() {
 
 	config = loadConfig(*configFile)
 
-	var errClient error
-	rocketChatClient, errClient = GetRocketChatClient(config)
-	if errClient != nil {
-		log.Fatalf("Error getting RocketChat client: %v", errClient)
+	errCheckConfig := checkConfig(config)
+	if errCheckConfig != nil {
+		log.Printf("Missing Rocket.Chat config parameters.")
+	} else {
+		var errClient error
+		rocketChatClient, errClient = GetRocketChatClient(config)
+		if errClient != nil {
+			log.Fatalf("Error getting RocketChat client: %v", errClient)
+		}
+
+		errAuthentication := AuthenticateRocketChatClient(rocketChatClient, config)
+		if errAuthentication != nil {
+			log.Printf("Error authenticating RocketChat client: %v", errAuthentication)
+		}
+
+		http.HandleFunc("/webhook", webhook)
+		http.Handle("/metrics", promhttp.Handler())
+
+		log.Printf("listening on: %v", *listenAddress)
+		log.Fatal(http.ListenAndServe(*listenAddress, nil))
 	}
-
-	errAuthentication := AuthenticateRocketChatClient(rocketChatClient, config)
-	if errAuthentication != nil {
-		log.Printf("Error authenticating RocketChat client: %v", errAuthentication)
-	}
-
-	http.HandleFunc("/webhook", webhook)
-	http.Handle("/metrics", promhttp.Handler())
-
-	log.Printf("listening on: %v", *listenAddress)
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
 func sendJSONResponse(w http.ResponseWriter, status int, message string) {
