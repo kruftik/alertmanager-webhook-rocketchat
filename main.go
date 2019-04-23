@@ -29,8 +29,8 @@ type JSONResponse struct {
 }
 
 func checkConfig(config Config) error {
-	if config.Credentials.ID == "" {
-		return errors.New("rocket.chat ID not provided")
+	if config.Credentials.Name == "" {
+		return errors.New("rocket.chat name not provided")
 	}
 	if config.Credentials.Email == "" {
 		return errors.New("rocket.chat email not provided")

@@ -29,7 +29,7 @@ var valuesCheckConfig = []ConfigDataTest{
 				Scheme: "https",
 			},
 			models.UserCredentials{
-				ID:       "123",
+				Name:     "john",
 				Email:    "123@123",
 				Password: "1234",
 			},
@@ -46,7 +46,7 @@ var valuesCheckConfig = []ConfigDataTest{
 				Scheme: "https",
 			},
 			models.UserCredentials{
-				ID:       "123",
+				Name:     "john",
 				Email:    "123@123",
 				Password: "1234",
 			},
@@ -63,7 +63,7 @@ var valuesCheckConfig = []ConfigDataTest{
 				Host: "rocket.chat",
 			},
 			models.UserCredentials{
-				ID:       "123",
+				Name:     "john",
 				Email:    "123@123",
 				Password: "1234",
 			},
@@ -89,7 +89,7 @@ var valuesCheckConfig = []ConfigDataTest{
 				DefaultChannelName: "default",
 			},
 		},
-		expected: errors.New("rocket.chat ID not provided"),
+		expected: errors.New("rocket.chat name not provided"),
 	},
 	{
 		input: Config{
@@ -98,7 +98,7 @@ var valuesCheckConfig = []ConfigDataTest{
 				Scheme: "https",
 			},
 			models.UserCredentials{
-				ID:       "123",
+				Name:     "john",
 				Password: "1234",
 			},
 			map[string]string{},
@@ -115,7 +115,7 @@ var valuesCheckConfig = []ConfigDataTest{
 				Scheme: "https",
 			},
 			models.UserCredentials{
-				ID:    "123",
+				Name:  "john",
 				Email: "123@123",
 			},
 			map[string]string{},
