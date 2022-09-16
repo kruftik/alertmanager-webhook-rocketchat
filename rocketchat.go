@@ -1,21 +1,60 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"html/template"
+	"strings"
+
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/realtime"
-	"github.com/prometheus/alertmanager/template"
+	amTemplate "github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/common/log"
-	"strings"
 )
 
 const (
-	defaultColor       = "#ffffff"
-	severityLabel      = "severity"
-	titleFormat        = "**[ %s ] %s from %s at %s**"
-	attachmentFormat   = "**%s**: %s\n"
-	alertNameFieldName = "alertname"
+	alertBodyTmplSource = `**{{ .Labels.alertname }}**: [**{{ .Labels.severity }}**] {{ .Annotations.summary }} {{ if .Annotations.message }}| {{ .Annotations.message }}{{ end }}`
+
+	alertAttachmentTextTmplSource = `{{ .Annotations.description }}`
+
+	alertNameLabel = "alertname"
+	severityLabel  = "severity"
+
+	defaultColor = "#ffffff"
 )
+
+var (
+	hiddenLabels = map[string]struct{}{
+		alertNameLabel: {},
+		severityLabel:  {},
+	}
+
+	hiddenAnnotations = map[string]struct{}{
+		"description": {},
+		"message":     {},
+		"summary":     {},
+		//"runbook_url": {},
+	}
+
+	alertBodyTmpl           *template.Template
+	alertAttachmentTextTmpl *template.Template
+
+	ErrDefaultChannelNotDefined = errors.New("default Rocket.Chat channel name is not defined in configuration")
+)
+
+func init() {
+	var err error
+
+	alertBodyTmpl, err = template.New("rc-alert-body").Parse(alertBodyTmplSource)
+	if err != nil {
+		log.Fatalf("cannot parse alert body template: %v", err)
+	}
+
+	alertAttachmentTextTmpl, err = template.New("rc-alert-attachment").Parse(alertAttachmentTextTmplSource)
+	if err != nil {
+		log.Fatalf("cannot parse alert attachment template: %v", err)
+	}
+}
 
 // RocketChat is the client interface to Rocket.Chat
 type RocketChat interface {
@@ -52,7 +91,6 @@ func (connector RocketChatConnector) NewMessage(channel *models.Channel, text st
 
 // GetRocketChat returns the RocketChat
 func GetRocketChat() (RocketChatConnector, error) {
-
 	rtClient, errClient := realtime.NewClient(&config.Endpoint, false)
 	if errClient != nil {
 		return RocketChatConnector{}, errClient
@@ -68,66 +106,109 @@ func AuthenticateRocketChatClient(connector RocketChat) error {
 	return errUser
 }
 
-func formatMessage(connector RocketChat, channel *models.Channel, alert template.Alert, receiver string) *models.Message {
+func formatFields(fields amTemplate.Pairs, hiddenFields map[string]struct{}) ([]models.AttachmentField, error) {
+	var (
+		attachmentFields = make([]models.AttachmentField, 0, len(fields))
+	)
+
+	for _, field := range fields {
+		if _, isHiddenField := hiddenFields[field.Name]; isHiddenField {
+			continue
+		}
+
+		attachmentFields = append(attachmentFields, models.AttachmentField{
+			Short: true,
+			Title: "**" + field.Name + "**",
+			Value: field.Value,
+		})
+	}
+
+	return attachmentFields, nil
+}
+
+func formatMessage(connector RocketChat, channel *models.Channel, alert amTemplate.Alert, receiver string) (*models.Message, error) {
+	var (
+		alertBodyBuilder           strings.Builder
+		alertAttachmentTextBuilder strings.Builder
+
+		attachmentFields = make([]models.AttachmentField, 0, len(alert.Labels.Names())+len(alert.Annotations.Names()))
+	)
+
+	err := alertBodyTmpl.Execute(&alertBodyBuilder, alert)
+	if err != nil {
+		return nil, fmt.Errorf("cannot prepare alert body: %w", err)
+	}
+
+	err = alertAttachmentTextTmpl.Execute(&alertAttachmentTextBuilder, alert)
+	if err != nil {
+		return nil, fmt.Errorf("cannot prepare alert attachment text: %w", err)
+	}
+
+	message := connector.NewMessage(channel, alertBodyBuilder.String())
+
 	severity := alert.Labels[severityLabel]
 
-	title := fmt.Sprintf(titleFormat, alert.Status, alert.Labels[alertNameFieldName], receiver, alert.StartsAt)
-	message := connector.NewMessage(channel, title)
-
-	var usedColor string
+	attachmentColor := defaultColor
 	if color, colorExists := config.SeverityColors[severity]; colorExists {
-		usedColor = color
-	} else {
-		usedColor = defaultColor
+		attachmentColor = color
 	}
 
-	var attachmentBuilder strings.Builder
+	labelFields, err := formatFields(alert.Labels.SortedPairs(), hiddenLabels)
+	if err != nil {
+		return nil, fmt.Errorf("cannot format labels: %w", err)
+	}
 
-	for _, label := range alert.Labels.SortedPairs() {
-		attachmentBuilder.WriteString(fmt.Sprintf(attachmentFormat, label.Name, label.Value))
+	attachmentFields = append(attachmentFields, labelFields...)
+
+	annotationFields, err := formatFields(alert.Annotations.SortedPairs(), hiddenAnnotations)
+	if err != nil {
+		return nil, fmt.Errorf("cannot format annotations: %w", err)
 	}
-	for _, annotation := range alert.Annotations.SortedPairs() {
-		attachmentBuilder.WriteString(fmt.Sprintf(attachmentFormat, annotation.Name, annotation.Value))
-	}
+
+	attachmentFields = append(attachmentFields, annotationFields...)
 
 	message.PostMessage.Attachments = []models.Attachment{
 		{
-			Color: usedColor,
-			Text:  attachmentBuilder.String(),
+			Color:  attachmentColor,
+			Text:   alertAttachmentTextBuilder.String(),
+			Fields: attachmentFields,
 		},
 	}
 
-	return message
+	return message, nil
 }
 
 // SendNotification connects to RocketChat server, authenticates the user and sends the notification
-func SendNotification(connector RocketChat, data template.Data) error {
-
+func SendNotification(connector RocketChat, data amTemplate.Data) error {
 	channelName := config.Channel.DefaultChannelName
 	if val, ok := data.CommonLabels["channel_name"]; ok {
 		channelName = val
 	}
 
 	if channelName == "" {
-		log.Error("Exception: Channel name not found. Please specify a default_channel_name in the configuration.")
-	} else {
-		channelID, errRoom := connector.GetChannelID(channelName)
-		if errRoom != nil {
-			log.Errorf("Error to get room ID: %v", errRoom)
-			return errRoom
+		return ErrDefaultChannelNotDefined
+	}
+
+	channelID, errRoom := connector.GetChannelID(channelName)
+	if errRoom != nil {
+		return fmt.Errorf("cannot get room ID: %w", errRoom)
+	}
+
+	channel := &models.Channel{ID: channelID}
+
+	log.Infof("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
+
+	for _, alert := range data.Alerts {
+		message, err := formatMessage(connector, channel, alert, data.Receiver)
+		if err != nil {
+			return fmt.Errorf("cannot prepare message: %w", err)
 		}
-		channel := &models.Channel{ID: channelID}
 
-		log.Infof("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
-		for _, alert := range data.Alerts {
-
-			message := formatMessage(connector, channel, alert, data.Receiver)
-			_, errMessage := connector.SendMessage(message)
-			if errMessage != nil {
-				log.Infof("Error to send message: %v", errMessage)
-				return errMessage
-			}
+		_, errMessage := connector.SendMessage(message)
+		if errMessage != nil {
+			return fmt.Errorf("cannot send message: %w", errMessage)
 		}
 	}
+
 	return nil
 }
