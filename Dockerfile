@@ -1,4 +1,4 @@
-FROM golang:1.12 as builder
+FROM golang:1.19-alpine as builder
 WORKDIR /go/src/github.com/FXinnovation/alertmanager-webhook-rocketchat
 COPY . .
 RUN make build
