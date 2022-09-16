@@ -17,8 +17,12 @@ const (
 
 	alertAttachmentTextTmplSource = `{{ .Annotations.description }}`
 
+	resolvedStatus = "resolved"
+
 	alertNameLabel = "alertname"
 	severityLabel  = "severity"
+
+	resolvedColorCode = "#00994c"
 
 	defaultColor = "#ffffff"
 )
@@ -146,11 +150,16 @@ func formatMessage(connector RocketChat, channel *models.Channel, alert amTempla
 
 	message := connector.NewMessage(channel, alertBodyBuilder.String())
 
-	severity := alert.Labels[severityLabel]
-
 	attachmentColor := defaultColor
-	if color, colorExists := config.SeverityColors[severity]; colorExists {
-		attachmentColor = color
+
+	if alert.Status != resolvedStatus {
+		severity := alert.Labels[severityLabel]
+
+		if color, colorExists := config.SeverityColors[severity]; colorExists {
+			attachmentColor = color
+		}
+	} else {
+		attachmentColor = resolvedColorCode
 	}
 
 	labelFields, err := formatFields(alert.Labels.SortedPairs(), hiddenLabels)
