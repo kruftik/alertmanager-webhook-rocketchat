@@ -4,16 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
-	"github.com/prometheus/common/log"
-	"github.com/prometheus/common/version"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
 
-	"github.com/prometheus/alertmanager/template"
+	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/version"
+
+	"github.com/prometheus/alertmanager/template"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 )
@@ -89,7 +90,7 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 	if errSend != nil {
 		log.Errorf("Error sending notifications to RocketChat : %v", errSend)
 		// Returns a 403 if the user can't authenticate
-		sendJSONResponse(w, http.StatusUnauthorized, errAuthentication.Error())
+		sendJSONResponse(w, http.StatusUnauthorized, errSend.Error())
 	} else {
 		// Returns a 200 if everything went smoothly
 		sendJSONResponse(w, http.StatusOK, "Success")
@@ -127,25 +128,27 @@ func main() {
 	errCheckConfig := checkConfig(config)
 	if errCheckConfig != nil {
 		log.Fatalf("Missing Rocket.Chat config parameters:%v", errCheckConfig)
-	} else {
-		var errClient error
-		rocketChat, errClient = GetRocketChat()
-		if errClient != nil {
-			log.Fatalf("Error getting RocketChat client: %v", errClient)
-		}
-
-		errAuthentication := AuthenticateRocketChatClient(rocketChat)
-		if errAuthentication != nil {
-			log.Errorf("Error authenticating RocketChat client: %v", errAuthentication)
-		}
-		log.Info("Starting webhook", version.Info())
-		log.Info("Build context", version.BuildContext())
-		http.HandleFunc("/webhook", webhook)
-		http.Handle("/metrics", promhttp.Handler())
-
-		log.Infof("listening on: %v", *listenAddress)
-		log.Fatal(http.ListenAndServe(*listenAddress, nil))
 	}
+
+	rocketChat, errClient := GetRocketChat()
+	if errClient != nil {
+		log.Fatalf("Error getting RocketChat client: %v", errClient)
+	}
+
+	errAuthentication := AuthenticateRocketChatClient(rocketChat)
+	if errAuthentication != nil {
+		log.Fatalf("Error authenticating RocketChat client: %v", errAuthentication)
+	}
+
+	log.Info("Starting webhook", version.Info())
+	log.Info("Build context", version.BuildContext())
+
+	log.Infof("listening on: %v", *listenAddress)
+
+	http.HandleFunc("/webhook", webhook)
+	http.Handle("/metrics", promhttp.Handler())
+
+	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
 func sendJSONResponse(w http.ResponseWriter, status int, message string) {
