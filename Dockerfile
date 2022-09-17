@@ -1,5 +1,6 @@
 FROM golang:1.19-alpine as builder
 WORKDIR /alertmanager-webhook-rocketchat
+RUN apk add --no-cache git
 COPY . .
 RUN go build -o ./app ./
 
