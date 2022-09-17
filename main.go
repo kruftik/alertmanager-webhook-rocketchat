@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
@@ -43,6 +45,33 @@ type Config struct {
 // ChannelInfo - Channel configuration
 type ChannelInfo struct {
 	DefaultChannelName string `yaml:"default_channel_name"`
+}
+
+func buildContext() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+
+	return fmt.Sprintf("(go=%s)", bi.GoVersion)
+}
+
+func buildInfo() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+
+	rev := "unknown"
+
+	for _, info := range bi.Settings {
+		if info.Key == "vcs.revision" {
+			rev = info.Value
+			break
+		}
+	}
+
+	return fmt.Sprintf("(version=%s, revision=%s)", bi.Main.Version, rev)
 }
 
 func checkConfig(config Config) error {
@@ -142,8 +171,8 @@ func main() {
 		log.Fatalf("Error authenticating RocketChat client: %v", errAuthentication)
 	}
 
-	log.Info("Starting webhook", version.Info())
-	log.Info("Build context", version.BuildContext())
+	log.Info("Starting webhook", buildInfo())
+	log.Info("Build context", buildContext())
 
 	log.Infof("listening on: %v", *listenAddress)
 
@@ -165,14 +194,16 @@ func sendJSONResponse(w http.ResponseWriter, status int, message string) {
 	if err != nil {
 		log.Errorf("Error writing body: %v", err.Error())
 	} else {
-		w.Write(bytes)
+		_, _ = w.Write(bytes)
 	}
 }
 
 func readRequestBody(r *http.Request) (template.Data, error) {
 
 	// Do not forget to close the body at the end
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(r.Body)
 
 	// Extract data from the body in the Data template provided by AlertManager
 	data := template.Data{}
@@ -185,16 +216,19 @@ func loadConfig(configFile string) Config {
 	config := Config{}
 
 	// Load the config from the file
-	configData, err := ioutil.ReadFile(configFile)
+	f, err := os.Open(configFile)
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		log.Fatalf("cannot open config file for reading: %v", err)
 	}
 
-	errYAML := yaml.Unmarshal([]byte(configData), &config)
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
+
+	errYAML := yaml.NewDecoder(f).Decode(&config)
 	if errYAML != nil {
-		log.Fatalf("Error: %v", errYAML)
+		log.Fatalf("cannot unmarshal config: %v", errYAML)
 	}
 
 	return config
-
 }
