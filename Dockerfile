@@ -2,7 +2,7 @@ FROM golang:1.19-alpine as builder
 WORKDIR /alertmanager-webhook-rocketchat
 RUN apk add --no-cache git
 COPY . .
-RUN go build -o ./app cmd/main
+RUN go build -o ./app ./cmd/main/
 
 FROM alpine:3 AS app
 LABEL maintainer="FXinnovation CloudToolDevelopment <CloudToolDevelopment@fxinnovation.com>"
