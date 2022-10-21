@@ -52,6 +52,17 @@ func RunApp(ctx context.Context) error {
 	log.Info("Build context", buildContext())
 	log.Info("Starting webhook", buildInfo())
 
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	ctx, cancelFn := context.WithCancel(ctx)
+	defer cancelFn()
+
+	go func(cancelFn func(), sigint chan os.Signal) {
+		<-sigint
+		cancelFn()
+	}(cancelFn, sigint)
+
 	cfg, err := config.LoadConfig(*configFile, *listenAddress)
 	if err != nil {
 		return fmt.Errorf("cannot read config: %w", err)
@@ -71,17 +82,6 @@ func RunApp(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("cannot initialize http server: %w", err)
 	}
-
-	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	ctx, cancelFn := context.WithCancel(ctx)
-	defer cancelFn()
-
-	go func(cancelFn func(), sigint chan os.Signal) {
-		<-sigint
-		cancelFn()
-	}(cancelFn, sigint)
 
 	shutDownCh := make(chan struct{})
 	defer close(shutDownCh)

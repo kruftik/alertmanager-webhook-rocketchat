@@ -38,12 +38,12 @@ func (ap *AlertProcessor) formatMessage(channel *models.Channel, alert amTemplat
 		attachmentFields = make([]models.AttachmentField, 0, len(alert.Labels.Names())+len(alert.Annotations.Names()))
 	)
 
-	err := alertBodyTmpl.Execute(&alertBodyBuilder, alert)
+	err := ap.tmpl.Body.Execute(&alertBodyBuilder, alert)
 	if err != nil {
 		return nil, fmt.Errorf("cannot prepare alert body: %w", err)
 	}
 
-	err = alertAttachmentTextTmpl.Execute(&alertAttachmentTextBuilder, alert)
+	err = ap.tmpl.Attachment.Execute(&alertAttachmentTextBuilder, alert)
 	if err != nil {
 		return nil, fmt.Errorf("cannot prepare alert attachment text: %w", err)
 	}

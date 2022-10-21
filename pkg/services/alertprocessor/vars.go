@@ -1,9 +1,5 @@
 package alertprocessor
 
-import (
-	"html/template"
-)
-
 const (
 	alertBodyTmplSource = `**{{ .Labels.alertname }}**: [**{{ .Labels.severity }}**] {{ .Annotations.summary }} {{ if .Annotations.message }}| {{ .Annotations.message }}{{ end }}`
 
@@ -31,7 +27,4 @@ var (
 		"summary":     {},
 		//"runbook_url": {},
 	}
-
-	alertBodyTmpl           *template.Template
-	alertAttachmentTextTmpl *template.Template
 )

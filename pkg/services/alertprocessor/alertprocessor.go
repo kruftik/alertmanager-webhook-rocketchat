@@ -2,6 +2,7 @@ package alertprocessor
 
 import (
 	"fmt"
+	"html/template"
 	"time"
 
 	"FXinnovation/alertmanager-webhook-rocketchat/internal/config"
@@ -25,9 +26,15 @@ var (
 type AlertProcessor struct {
 	cfg config.AppConfig
 	rc  rocketchat.IRocketChat
+
+	tmpl messageTemplate
 }
 
 func New(cfg config.AppConfig, rc rocketchat.IRocketChat) (*AlertProcessor, error) {
+	var (
+		err error
+	)
+
 	if cfg.RocketChat.Channel.DefaultChannelName == "" {
 		return nil, ErrDefaultChannelNotDefined
 	}
@@ -37,7 +44,36 @@ func New(cfg config.AppConfig, rc rocketchat.IRocketChat) (*AlertProcessor, erro
 		rc:  rc,
 	}
 
+	ap.tmpl, err = ap.parseMessageTemplates()
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse message templates: %w", err)
+	}
+
 	return ap, nil
+}
+
+type messageTemplate struct {
+	Body       *template.Template
+	Attachment *template.Template
+}
+
+func (ap *AlertProcessor) parseMessageTemplates() (messageTemplate, error) {
+	var (
+		tmpl messageTemplate
+		err  error
+	)
+
+	tmpl.Body, err = template.New("rc-alert-body").Parse(alertBodyTmplSource)
+	if err != nil {
+		return tmpl, fmt.Errorf("cannot parse alert body template: %w", err)
+	}
+
+	tmpl.Attachment, err = template.New("rc-alert-attachment").Parse(alertAttachmentTextTmplSource)
+	if err != nil {
+		return tmpl, fmt.Errorf("cannot parse alert attachment template: %w", err)
+	}
+
+	return tmpl, nil
 }
 
 func (ap *AlertProcessor) SendMessageWithRetries(msg *models.Message) error {
@@ -60,7 +96,7 @@ func (ap *AlertProcessor) SendMessageWithRetries(msg *models.Message) error {
 	return nil
 }
 
-// SendNotification connects to IRocketChat server, authenticates the user and sends the notification
+// SendNotification connects to RocketChat server, authenticates the user and sends the notification
 func (ap *AlertProcessor) SendNotification(data amTemplate.Data) error {
 	channelName := ap.cfg.RocketChat.Channel.DefaultChannelName
 	if val, ok := data.CommonLabels["channel_name"]; ok {
