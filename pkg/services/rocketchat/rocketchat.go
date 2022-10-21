@@ -2,6 +2,7 @@ package rocketchat
 
 import (
 	"fmt"
+	"log"
 
 	"FXinnovation/alertmanager-webhook-rocketchat/internal/config"
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
@@ -48,7 +49,14 @@ func New(cfg config.AppConfig) (*Service, error) {
 
 // Login wraps the Login method
 func (svc Service) Login() (*models.User, error) {
-	return svc.Client.Login(svc.Credentials)
+	user, err := svc.Client.Login(svc.Credentials)
+	if err != nil {
+		log.Printf("rocketchat login error:  >>> %#v <<<", err)
+
+		return nil, err
+	}
+
+	return user, nil
 }
 
 // GetChannelID wraps the GetChannelId method
