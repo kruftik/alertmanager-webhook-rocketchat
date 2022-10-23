@@ -95,9 +95,13 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 		if err := sendJSONResponse(w, http.StatusInternalServerError, fmt.Sprintf("cannot send notification: %v", err)); err != nil {
 			log.Warnf("cannot send error: %v", err)
 		}
+
+		return
 	}
 
 	if err := sendJSONResponse(w, http.StatusOK, "Success"); err != nil {
 		log.Warnf("cannot send response: %v", err)
+
+		return
 	}
 }

@@ -16,6 +16,8 @@ type IRocketChat interface {
 	GetChannelID(channelName string) (string, error)
 	SendMessage(message *models.Message) (*models.Message, error)
 	NewMessage(channel *models.Channel, text string) *models.Message
+
+	CheckAuthSessionStatus() error
 }
 
 var (
@@ -72,4 +74,13 @@ func (svc Service) SendMessage(message *models.Message) (*models.Message, error)
 // NewMessage wraps the NewMessage method
 func (svc Service) NewMessage(channel *models.Channel, text string) *models.Message {
 	return svc.Client.NewMessage(channel, text)
+}
+
+func (svc Service) CheckAuthSessionStatus() error {
+	_, err := svc.Client.GetChannelsIn()
+	if err != nil {
+		return ErrAuthSessionExpired
+	}
+
+	return nil
 }

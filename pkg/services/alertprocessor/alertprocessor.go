@@ -1,6 +1,7 @@
 package alertprocessor
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"time"
@@ -76,31 +77,41 @@ func (ap *AlertProcessor) parseMessageTemplates() (messageTemplate, error) {
 	return tmpl, nil
 }
 
-func (ap *AlertProcessor) SendMessageWithRetries(msg *models.Message) error {
-	err := retry(retriesCount, retryInterval, func() error {
-		_, err := ap.rc.SendMessage(msg)
-		if err != nil {
-			if _, err := ap.rc.Login(); err != nil {
-				return fmt.Errorf("cannot reauthentificate in rocketchat: %w", err)
-			}
-
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("cannot send message: %w", err)
-	}
-
-	return nil
-}
+//func (ap *AlertProcessor) SendMessageWithRetries(msg *models.Message) error {
+//	err := retry(retriesCount, retryInterval, func() error {
+//		_, err := ap.rc.SendMessage(msg)
+//		if err != nil {
+//			if _, err := ap.rc.Login(); err != nil {
+//				return fmt.Errorf("cannot reauthentificate in rocketchat: %w", err)
+//			}
+//
+//			return err
+//		}
+//
+//		return nil
+//	})
+//	if err != nil {
+//		return fmt.Errorf("cannot send message: %w", err)
+//	}
+//
+//	return nil
+//}
 
 // SendNotification connects to RocketChat server, authenticates the user and sends the notification
 func (ap *AlertProcessor) SendNotification(data amTemplate.Data) error {
 	channelName := ap.cfg.RocketChat.Channel.DefaultChannelName
 	if val, ok := data.CommonLabels["channel_name"]; ok {
 		channelName = val
+	}
+
+	if err := ap.rc.CheckAuthSessionStatus(); err != nil {
+		if !errors.Is(err, rocketchat.ErrAuthSessionExpired) {
+			return fmt.Errorf("cannot check rocketchat auth session status: %w", err)
+		}
+
+		if _, err := ap.rc.Login(); err != nil {
+			return fmt.Errorf("cannot reauthentificate in rocketchat: %w", err)
+		}
 	}
 
 	channelID, err := ap.rc.GetChannelID(channelName)
@@ -115,13 +126,12 @@ func (ap *AlertProcessor) SendNotification(data amTemplate.Data) error {
 	log.Infof("Alerts: Status=%s, GroupLabels=%v, CommonLabels=%v", data.Status, data.GroupLabels, data.CommonLabels)
 
 	for _, alert := range data.Alerts {
-		message, err := ap.formatMessage(channel, alert, data.Receiver)
+		msg, err := ap.formatMessage(channel, alert, data.Receiver)
 		if err != nil {
 			return fmt.Errorf("cannot prepare message: %w", err)
 		}
 
-		err = ap.SendMessageWithRetries(message)
-		if err != nil {
+		if _, err := ap.rc.SendMessage(msg); err != nil {
 			return fmt.Errorf("cannot send message: %w", err)
 		}
 	}
